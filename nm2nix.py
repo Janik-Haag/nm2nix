@@ -10,12 +10,12 @@ print("{")
 for i in nmfiles:
     config = configparser.ConfigParser()
     config.read(i)
-    print(f"  {i} = {{")
+    connection_name = i.strip(".nmconnection")
+    print(f"  {connection_name} = {{")
     for section in config.sections():
         print(f"    {section} = {{")
         for key in config[section]:
             print(f'      {key} = "{config[section][key]}";')
         print("    };")
     print("  };")
-
 print("};")
