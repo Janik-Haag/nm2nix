@@ -8,7 +8,7 @@ nmfiles = [f for f in files if f.endswith(".nmconnection")]
 
 print("{")
 for i in nmfiles:
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(delimiters=('=', ))
     config.read(i)
     connection_name = i.strip(".nmconnection")
     print(f"  {connection_name} = {{")
