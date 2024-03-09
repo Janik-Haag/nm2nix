@@ -10,7 +10,7 @@ print("{")
 for i in nmfiles:
     config = configparser.ConfigParser(delimiters=('=', ))
     config.read(i)
-    connection_name = i.strip(".nmconnection")
+    connection_name = i.removesuffix(".nmconnection")
     print(f"  {connection_name} = {{")
     for section in config.sections():
         print(f"    {section} = {{")
