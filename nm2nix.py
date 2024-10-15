@@ -1,4 +1,4 @@
-from os import listdir, getpid
+from os import listdir
 from subprocess import check_output
 from os.path import isfile, join
 import configparser
@@ -22,9 +22,7 @@ for i in nmfiles:
         for key in config[section]:
             jsonConfigs[connection_name][section][key] = config[section][key]
 
-tf = tempfile.TemporaryFile("w+")
-jsonConfigs = json.dump(jsonConfigs, tf)
-tf.flush()
-
-
-print(check_output(["nix-instantiate", "--expr", "--eval",  f"builtins.fromJSON (builtins.readFile \"/proc/{getpid()}/fd/{tf.fileno()}\")"], text=True))  # noqa: E501
+with tempfile.NamedTemporaryFile(mode="w") as tf:
+    tf.write(json.dumps(jsonConfigs))
+    tf.flush()
+    print(check_output(["nix-instantiate", "--expr", "--eval",  f"builtins.fromJSON (builtins.readFile \"{tf.name}\")"], text=True))  # noqa: E501
