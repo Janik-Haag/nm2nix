@@ -1,9 +1,9 @@
-from os import listdir, getpid
-from subprocess import check_output
-from os.path import isfile, join
 import configparser
-import tempfile
 import json
+import tempfile
+from os import getpid, listdir
+from os.path import isfile, join
+from subprocess import check_output
 
 path = "./"
 
@@ -13,7 +13,7 @@ nmfiles = [f for f in files if f.endswith(".nmconnection")]
 jsonConfigs = {}
 
 for i in nmfiles:
-    config = configparser.ConfigParser(delimiters=('=', ))
+    config = configparser.ConfigParser(delimiters=("=",))
     config.read(i)
     connection_name = i.removesuffix(".nmconnection")
     jsonConfigs[connection_name] = {}
@@ -27,4 +27,14 @@ jsonConfigs = json.dump(jsonConfigs, tf)
 tf.flush()
 
 
-print(check_output(["nix-instantiate", "--expr", "--eval",  f"builtins.fromJSON (builtins.readFile \"/proc/{getpid()}/fd/{tf.fileno()}\")"], text=True))  # noqa: E501
+print(
+    check_output(
+        [
+            "nix-instantiate",
+            "--expr",
+            "--eval",
+            f'builtins.fromJSON (builtins.readFile "/proc/{getpid()}/fd/{tf.fileno()}")',
+        ],
+        text=True,
+    )
+)
