@@ -16,7 +16,7 @@ CONNECTIONS_DIRECTORIES = [
 EXTENSION = "nmconnection"
 GLOBS = [join(directory, f"*.{EXTENSION}") for directory in CONNECTIONS_DIRECTORIES]
 
-configs = {}
+configs: dict[str, dict[str, dict[str, str]]] = {}
 
 for glob_ in GLOBS:
     LOGGER.debug(f"Looping through {glob_}")
