@@ -4,12 +4,26 @@
   };
   outputs =
     { self, nixpkgs }:
+    let
+      allSystems = [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
+      forAllSystems =
+        function:
+        nixpkgs.lib.genAttrs allSystems (
+          system:
+          function {
+            pkgs = import nixpkgs { inherit system; };
+          }
+        );
+    in
     {
-      packages.x86_64-linux.default =
-        nixpkgs.legacyPackages.x86_64-linux.writers.writePython3Bin "nm2nix" { }
-          (builtins.readFile ./nm2nix.py);
-      packages.aarch64-linux.default =
-        nixpkgs.legacyPackages.aarch64-linux.writers.writePython3Bin "nm2nix" { }
-          (builtins.readFile ./nm2nix.py);
+      packages = forAllSystems (
+        { pkgs }:
+        {
+          default = pkgs.writers.writePython3Bin "nm2nix" { } (builtins.readFile ./nm2nix.py);
+        }
+      );
     };
 }
