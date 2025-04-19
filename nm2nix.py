@@ -1,12 +1,13 @@
 from configparser import ConfigParser
 from glob import glob
 from json import dump
-from logging import DEBUG, basicConfig, getLogger
+from logging import basicConfig, getLogger
+from os import environ
 from os.path import basename, join
 from subprocess import check_output
 from tempfile import NamedTemporaryFile
 
-basicConfig(level=DEBUG)
+basicConfig(level=environ.get("LOGLEVEL", "WARNING"))
 LOGGER = getLogger(__name__)
 
 CONNECTIONS_DIRECTORIES = [
