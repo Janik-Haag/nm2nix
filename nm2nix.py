@@ -2,7 +2,7 @@ from configparser import ConfigParser
 from glob import glob
 from json import dump
 from logging import DEBUG, basicConfig, getLogger
-from os.path import join
+from os.path import basename, join
 from subprocess import check_output
 from tempfile import NamedTemporaryFile
 
@@ -24,7 +24,8 @@ for glob_ in GLOBS:
         LOGGER.info(f"Handling {file_path}")
         config = ConfigParser(delimiters=("=",))
         config.read(file_path)
-        connection_name = file_path.removesuffix(f".{EXTENSION}")
+        # Assume that there are no duplicates in `GLOBS`
+        connection_name = basename(file_path).removesuffix(f".{EXTENSION}")
         configs[connection_name] = {}
         for section in config.sections():
             configs[connection_name][section] = {}
