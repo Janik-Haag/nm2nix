@@ -13,7 +13,7 @@ nmfiles = [f for f in files if f.endswith(".nmconnection")]
 jsonConfigs = {}
 
 for i in nmfiles:
-    config = configparser.ConfigParser(delimiters=('=', ))
+    config = configparser.ConfigParser(delimiters=('=', ), interpolation=None)
     config.read(i)
     connection_name = i.removesuffix(".nmconnection")
     jsonConfigs[connection_name] = {}
