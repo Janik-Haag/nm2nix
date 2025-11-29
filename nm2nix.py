@@ -38,6 +38,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-cd", help=f"wether to cd to { ", ".join(PATHS)}", action="store_true"
 )
+parser.add_argument(
+    "-s", help="wether to split output to one file each", action="store_true"
+)
 
 args = parser.parse_args()
 
@@ -68,4 +71,9 @@ for i in nmfiles:
         for key in config[section]:
             jsonConfigs[connection_name][section][key] = config[section][key]
 
-print(to_nix(jsonConfigs))
+if not args.s:
+    print(to_nix(jsonConfigs))
+else:
+    for key, value in jsonConfigs.items():
+        with open(key + ".nix", "w") as f:
+            f.write(to_nix(value))
