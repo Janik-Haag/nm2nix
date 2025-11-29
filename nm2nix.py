@@ -25,6 +25,20 @@ def to_nix(input: str) -> str:
     return output
 
 
+def format(input: str) -> str:
+    return check_output(
+        [
+            "nix",
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "run",
+            "nixpkgs#nixfmt-rfc-style",
+        ],
+        text=True,
+        input=input,
+    )
+
+
 PATHS = [
     "/run/NetworkManager/system-connections",
     "/etc/NetworkManager/system-connections",
@@ -41,6 +55,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "-s", help="wether to split output to one file each", action="store_true"
+)
+parser.add_argument(
+    "-f", help="wether to format the files / output", action="store_true"
 )
 
 args = parser.parse_args()
@@ -73,8 +90,14 @@ for i in nmfiles:
             jsonConfigs[connection_name][section][key] = config[section][key]
 
 if not args.s:
-    print(to_nix(jsonConfigs))
+    output = to_nix(jsonConfigs)
+    if args.f:
+        output = format(output)
+    print(output)
 else:
     for key, value in jsonConfigs.items():
         with open(key + ".nix", "w") as f:
-            f.write(to_nix(value))
+            output = to_nix(value)
+            if args.f:
+                output = format(output)
+            f.write(output)
