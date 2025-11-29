@@ -40,6 +40,9 @@ parser.add_argument(
     help=f"The Path in which to search for .nmconnection files \n supply multiple times to search in multiple paths \n defaults to: { ", ".join(PATHS)}",
     action="append",
 )
+parser.add_argument(
+    "-s", help="wether to output one file per connection", action="store_true"
+)
 
 args = parser.parse_args()
 
@@ -72,4 +75,9 @@ for i in nmfiles:
         for key in config[section]:
             jsonConfigs[connection_name][section][key] = config[section][key]
 
-print(json_to_nix(jsonConfigs))
+if not args.s:
+    print(json_to_nix(jsonConfigs))
+else:
+    for key, value in jsonConfigs.items():
+        with open(key + ".nix", "w") as f:
+            f.write(json_to_nix(value))
