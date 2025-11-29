@@ -7,6 +7,24 @@ import json
 import argparse
 from itertools import chain
 
+
+def to_nix(input: str) -> str:
+    output = ""
+    with tempfile.NamedTemporaryFile(mode="w") as tf:
+        tf.write(json.dumps(input))
+        tf.flush()
+        output = check_output(
+            [
+                "nix-instantiate",
+                "--expr",
+                "--eval",
+                f'builtins.fromJSON (builtins.readFile "{tf.name}")',
+            ],
+            text=True,
+        )
+    return output
+
+
 PATHS = [
     "/run/NetworkManager/system-connections",
     "/etc/NetworkManager/system-connections",
@@ -55,33 +73,8 @@ for i in nmfiles:
             jsonConfigs[connection_name][section][key] = config[section][key]
 
 if not args.s:
-    with tempfile.NamedTemporaryFile(mode="w") as tf:
-        tf.write(json.dumps(jsonConfigs))
-        tf.flush()
-        print(
-            check_output(
-                [
-                    "nix-instantiate",
-                    "--expr",
-                    "--eval",
-                    f'builtins.fromJSON (builtins.readFile "{tf.name}")',
-                ],
-                text=True,
-            )
-        )  # noqa: E501
+    print(to_nix(jsonConfigs))
 else:
     for key, value in jsonConfigs.items():
         with open(key + ".nix", "w") as f:
-            with tempfile.NamedTemporaryFile(mode="w") as tf:
-                tf.write(json.dumps(value))
-                tf.flush()
-                nix_exp = check_output(
-                    [
-                        "nix-instantiate",
-                        "--expr",
-                        "--eval",
-                        f'builtins.fromJSON (builtins.readFile "{tf.name}")',
-                    ],
-                    text=True,
-                )
-                f.write(nix_exp)
+            f.write(to_nix(value))
