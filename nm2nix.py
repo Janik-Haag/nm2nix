@@ -21,6 +21,9 @@ paths_list_human = ", ".join(PATHS)
 parser.add_argument(
     "-cd", help=f"wether to cd to {paths_list_human}", action="store_true"
 )
+parser.add_argument(
+    "-s", help="wether to split output to one file each", action="store_true"
+)
 
 args = parser.parse_args()
 
@@ -51,17 +54,34 @@ for i in nmfiles:
         for key in config[section]:
             jsonConfigs[connection_name][section][key] = config[section][key]
 
-with tempfile.NamedTemporaryFile(mode="w") as tf:
-    tf.write(json.dumps(jsonConfigs))
-    tf.flush()
-    print(
-        check_output(
-            [
-                "nix-instantiate",
-                "--expr",
-                "--eval",
-                f'builtins.fromJSON (builtins.readFile "{tf.name}")',
-            ],
-            text=True,
-        )
-    )  # noqa: E501
+if not args.s:
+    with tempfile.NamedTemporaryFile(mode="w") as tf:
+        tf.write(json.dumps(jsonConfigs))
+        tf.flush()
+        print(
+            check_output(
+                [
+                    "nix-instantiate",
+                    "--expr",
+                    "--eval",
+                    f'builtins.fromJSON (builtins.readFile "{tf.name}")',
+                ],
+                text=True,
+            )
+        )  # noqa: E501
+else:
+    for key, value in jsonConfigs.items():
+        with open(key + ".nix", "w") as f:
+            with tempfile.NamedTemporaryFile(mode="w") as tf:
+                tf.write(json.dumps(value))
+                tf.flush()
+                nix_exp = check_output(
+                    [
+                        "nix-instantiate",
+                        "--expr",
+                        "--eval",
+                        f'builtins.fromJSON (builtins.readFile "{tf.name}")',
+                    ],
+                    text=True,
+                )
+                f.write(nix_exp)
