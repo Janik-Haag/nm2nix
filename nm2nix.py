@@ -30,6 +30,8 @@ PATHS = [
     "/etc/NetworkManager/system-connections",
 ]
 
+NMSUFFIX = ".nmconnection"
+
 parser = argparse.ArgumentParser(
     prog="nm2nix",
     description="Converts .nmconnection files into nix code",
@@ -42,6 +44,9 @@ parser.add_argument(
 parser.add_argument(
     "-s", help="wether to split output to one file each", action="store_true"
 )
+parser.add_argument(
+    "-e", help="file names of connections to exclude", action="append", default=[]
+)
 
 args = parser.parse_args()
 
@@ -53,19 +58,27 @@ if args.cd:
 files = list(
     chain.from_iterable(
         [
-            ([join(path, f) for f in listdir(path) if isfile(join(path, f))])
+            (
+                [
+                    join(path, f)
+                    for f in filter(
+                        lambda f: f.removesuffix(NMSUFFIX) not in args.e, listdir(path)
+                    )
+                    if isfile(join(path, f))
+                ]
+            )
             for path in paths
         ]
     )
 )
-nmfiles = [f for f in files if f.endswith(".nmconnection")]
+nmfiles = [f for f in files if f.endswith(NMSUFFIX)]
 
 jsonConfigs = {}
 
 for i in nmfiles:
     config = configparser.ConfigParser(delimiters=("=",), interpolation=None)
     config.read(i)
-    connection_name = i.removesuffix(".nmconnection").split("/")[-1]
+    connection_name = i.removesuffix(NMSUFFIX).split("/")[-1]
     jsonConfigs[connection_name] = {}
     for section in config.sections():
         jsonConfigs[connection_name][section] = {}
