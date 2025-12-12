@@ -1,5 +1,6 @@
 from os import listdir
-from subprocess import check_output
+import subprocess
+from subprocess import check_output, CalledProcessError
 from os.path import isfile, join
 import configparser
 import tempfile
@@ -8,7 +9,7 @@ import argparse
 import copy
 import re
 import os
-import subprocess
+import sys
 from itertools import chain
 
 
@@ -128,6 +129,17 @@ parser.add_argument(
 parser.add_argument(
     "-interactive-retry-agenix",
     help="wether to retry agenix encryption after an error having recieve a ENTER",
+    action="store_true",
+)
+
+parser.add_argument(
+    "-agenix-continue-on-err",
+    help="wether to continue when agenix threw an erro",
+    action="store_true",
+)
+
+parser.add_argument(
+    "-output-missing-keys",
     action="store_true",
 )
 
@@ -277,6 +289,7 @@ else:
         with open(path, "w") as f:
             f.write(content)
 
+missing_keys = []
 if args.use_agenix:
     for secret in secrets:
         connection_name = secret["matchId"]
@@ -291,6 +304,7 @@ if args.use_agenix:
             env["RULES"] = args.secrets_nix_path
         with open(path) as p:
             content = p.read()
+            output = ""
 
             def run_command():
                 output = check_output(
@@ -307,12 +321,28 @@ if args.use_agenix:
                 )
                 return output
 
-            if args.interactive_retry_agenix:
+            if args.interactive_retry_agenix or args.agenix_continue_on_err:
                 try:
-                    run_command()
-                except Exception as e:
-                    print(e)
-                    input()
-                    run_command()
+                    output = run_command()
+                except CalledProcessError as e:
+                    output = e.output
+                    print(e, output, file=sys.stderr)
+                    if not args.agenix_continue_on_err:
+                        input()
+                        output = run_command()
             else:
-                run_command()
+                output = run_command()
+            if args.output_missing_keys:
+                match = re.search(
+                    "error: attribute '(?P<inner>.*)' missing",
+                    output,
+                    flags=re.MULTILINE,
+                )
+                if match is not None:
+                    missing_keys.append(match.group("inner"))
+
+
+if args.output_missing_keys:
+    print(DELIMITER)
+    for key in missing_keys:
+        print(key)
