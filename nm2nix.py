@@ -6,6 +6,9 @@ import tempfile
 import json
 import argparse
 import copy
+import re
+import os
+import subprocess
 from itertools import chain
 
 
@@ -111,6 +114,29 @@ parser.add_argument(
     help="if given, write passwords to a secret file inside this folder, using nm-file-secret-agent to subsitute them back",
 )
 
+parser.add_argument(
+    "-use-agenix",
+    help="wether to use agenix to obtain secrets inside of the secret files",
+    action="store_true",
+)
+
+parser.add_argument(
+    "-secrets-nix-path",
+    help="path to secrets.nix to use",
+)
+
+parser.add_argument(
+    "-interactive-retry-agenix",
+    help="wether to retry agenix encryption after an error having recieve a ENTER",
+    action="store_true",
+)
+
+parser.add_argument(
+    "agenix_extra_args",
+    help="extra args passed to agenix. given as one string",
+    nargs="*",
+)
+
 args = parser.parse_args()
 
 
@@ -126,6 +152,8 @@ def target_nix_secret_file_path(connection_name, match_type, match_setting, key)
 def subsitute_file_path_expr(
     base_folder: str, connection_name, match_type, match_setting, key, target_file_path
 ):
+    if args.use_agenix:
+        return f"AGENIXKEY__{connection_name}-{match_type}-{match_setting}-{key}__AGENIXKEY"
     return f"{base_folder}/{connection_name}-{match_type}-{match_setting}-{key}"
 
 
@@ -235,5 +263,56 @@ else:
                 "file": secret["file"],
             }
         )
+        if args.use_agenix:
+            match = re.search(
+                "AGENIXKEY__(?P<inner>.*)__AGENIXKEY", content, flags=re.MULTILINE
+            )
+            if match is not None:
+                whole = match.group(0)
+                inner = match.group("inner")
+                content = content.replace(
+                    f'"{whole}"', f'config.age.secrets."{inner}".path'
+                )
+                content = "config:" + content
         with open(path, "w") as f:
             f.write(content)
+
+if args.use_agenix:
+    for secret in secrets:
+        connection_name = secret["matchId"]
+        match_type = secret["matchType"][1]
+        setting = secret["matchSetting"][1]
+        key = secret["key"]
+        path = target_file_path(
+            args.pwfolder, connection_name, match_type, setting, key
+        )
+        env = os.environ.copy()
+        if args.secrets_nix_path is not None:
+            env["RULES"] = args.secrets_nix_path
+        with open(path) as p:
+            content = p.read()
+
+            def run_command():
+                output = check_output(
+                    [
+                        "agenix",
+                        "-e",
+                        f"{path}.age",
+                    ]
+                    + args.agenix_extra_args,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    input=content,
+                    env=env,
+                )
+                return output
+
+            if args.interactive_retry_agenix:
+                try:
+                    run_command()
+                except Exception as e:
+                    print(e)
+                    input()
+                    run_command()
+            else:
+                run_command()
