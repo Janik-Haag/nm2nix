@@ -157,8 +157,10 @@ def target_file_path(base_folder: str, connection_name, match_type, match_settin
     return f"{base_folder}/{connection_name}-{match_type}-{match_setting}-{key}"
 
 
-def target_nix_secret_file_path(connection_name, match_type, match_setting, key):
-    return f"{connection_name}-{match_type}-{match_setting}-{key}.nix"
+def target_nix_secret_file_path(
+    base_folder, connection_name, match_type, match_setting, key
+):
+    return f"{base_folder}/{connection_name}-{match_type}-{match_setting}-{key}.nix"
 
 
 def subsitute_file_path_expr(
@@ -264,7 +266,7 @@ else:
         setting = secret["matchSetting"][1]
         key = secret["key"]
         path = target_nix_secret_file_path(
-            connection_name, match_type, match_setting, key
+            args.pwfolder, connection_name, match_type, match_setting, key
         )
         content = to_nix(
             {
