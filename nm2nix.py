@@ -144,6 +144,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "-delete-blank-secrets",
+    action="store_true",
+)
+
+parser.add_argument(
     "agenix_extra_args",
     help="extra args passed to agenix. given as one string",
     nargs="*",
@@ -342,6 +347,8 @@ if args.use_agenix:
                 )
                 if match is not None:
                     missing_keys.append(match.group("inner"))
+        if args.delete_blank_secrets:
+            os.remove(path)
 
 
 if args.output_missing_keys:
