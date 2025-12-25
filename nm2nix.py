@@ -5,6 +5,7 @@ import configparser
 import tempfile
 import json
 import argparse
+import copy
 from itertools import chain
 
 
@@ -45,6 +46,47 @@ PATHS = [
 ]
 
 NMSUFFIX = ".nmconnection"
+# matchSetting apparently does not map directly onto the top level key (from, to) or just val if both are the same
+# same goes for matchType
+PWEXTRACTIONS = [
+    {
+        "matchType": ("wifi", "802-11-wireless"),
+        "matchSetting": ("wifi-security", "802-11-wireless-security"),
+        "key": "psk",
+    },
+    {
+        "matchType": "wifi",
+        "matchSetting": "802-1x",
+        "key": "password",
+    },
+    {
+        "matchType": "wifi",
+        "matchSetting": "802-1x",
+        "key": "identity",
+    },
+    {
+        "matchType": "wireguard",
+        "matchSetting": "wireguard",
+        "key": "private-key",
+    },
+]
+
+
+def normalize_dict(e) -> dict:
+    matchSetting = e["matchSetting"]
+    matchType = e["matchType"]
+    if not isinstance(matchSetting, tuple):
+        matchSetting = (matchSetting, matchSetting)
+    if not isinstance(matchType, tuple):
+        matchType = (matchType, matchType)
+    return {"key": e["key"], "matchSetting": matchSetting, "matchType": matchType}
+
+
+# normalizing these extractions
+PWEXTRACTIONS = map(normalize_dict, PWEXTRACTIONS)
+PWEXTRACTIONS = list(PWEXTRACTIONS)
+
+DELIMITER = "============================="
 
 parser = argparse.ArgumentParser(
     prog="nm2nix",
@@ -64,7 +106,27 @@ parser.add_argument(
     "-e", help="file names of connections to exclude", action="append", default=[]
 )
 
+parser.add_argument(
+    "-pwfolder",
+    help="if given, write passwords to a secret file inside this folder, using nm-file-secret-agent to subsitute them back",
+)
+
 args = parser.parse_args()
+
+
+# returns file path where the secret should be written to
+def target_file_path(base_folder: str, connection_name, match_type, match_setting, key):
+    return f"{base_folder}/{connection_name}-{match_type}-{match_setting}-{key}"
+
+
+def target_nix_secret_file_path(connection_name, match_type, match_setting, key):
+    return f"{connection_name}-{match_type}-{match_setting}-{key}.nix"
+
+
+def subsitute_file_path_expr(
+    base_folder: str, connection_name, match_type, match_setting, key, target_file_path
+):
+    return f"{base_folder}/{connection_name}-{match_type}-{match_setting}-{key}"
 
 
 paths = ["./"]
@@ -90,6 +152,7 @@ files = list(
 nmfiles = [f for f in files if f.endswith(NMSUFFIX)]
 
 jsonConfigs = {}
+secrets = []
 
 for i in nmfiles:
     config = configparser.ConfigParser(delimiters=("=",), interpolation=None)
@@ -100,6 +163,40 @@ for i in nmfiles:
         jsonConfigs[connection_name][section] = {}
         for key in config[section]:
             jsonConfigs[connection_name][section][key] = config[section][key]
+    if args.pwfolder is not None:
+        conn = jsonConfigs[connection_name]
+        for extraction in PWEXTRACTIONS:
+            match_type = extraction["matchType"][0]
+            match_type_1 = extraction["matchType"][1]
+            if conn["connection"]["type"] == match_type:
+                match_setting = extraction["matchSetting"][0]
+                match_setting_1 = extraction["matchSetting"][1]
+                key = extraction["key"]
+                setting = conn.get(match_setting)
+                if setting is not None and setting.get(key) is not None:
+                    # print(f"found secret: {connection_name}:{extraction}")
+                    secret_value = setting.get(key)
+                    del jsonConfigs[connection_name][match_setting][key]
+                    target_path = target_file_path(
+                        args.pwfolder,
+                        connection_name,
+                        match_type_1,
+                        match_setting_1,
+                        key,
+                    )
+                    with open(target_path, "w") as file:
+                        file.write(secret_value)
+                    secret_dict = copy.deepcopy(extraction)
+                    secret_dict["file"] = subsitute_file_path_expr(
+                        args.pwfolder,
+                        connection_name,
+                        match_type_1,
+                        match_setting_1,
+                        key,
+                        target_path,
+                    )
+                    secret_dict["matchId"] = connection_name
+                    secrets.append(secret_dict)
 
 if not args.s:
     output = to_nix(jsonConfigs)
@@ -113,3 +210,30 @@ else:
             if args.f:
                 output = format(output)
             f.write(output)
+
+if not args.s:
+    print(DELIMITER)
+    output = to_nix(secrets)
+    if args.f:
+        output = format(output)
+    print(output)
+else:
+    for secret in secrets:
+        connection_name = secret["matchId"]
+        match_type = secret["matchType"][1]
+        setting = secret["matchSetting"][1]
+        key = secret["key"]
+        path = target_nix_secret_file_path(
+            connection_name, match_type, match_setting, key
+        )
+        content = to_nix(
+            {
+                "matchId": connection_name,
+                "matchType": match_type,
+                "matchSetting": setting,
+                "key": key,
+                "file": secret["file"],
+            }
+        )
+        with open(path, "w") as f:
+            f.write(content)
