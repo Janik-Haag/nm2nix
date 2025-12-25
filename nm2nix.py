@@ -60,6 +60,9 @@ parser.add_argument(
 parser.add_argument(
     "-f", help="wether to format the files / output", action="store_true"
 )
+parser.add_argument(
+    "-e", help="file names of connections to exclude", action="append", default=[]
+)
 
 args = parser.parse_args()
 
@@ -71,7 +74,15 @@ if args.cd:
 files = list(
     chain.from_iterable(
         [
-            ([join(path, f) for f in listdir(path) if isfile(join(path, f))])
+            (
+                [
+                    join(path, f)
+                    for f in filter(
+                        lambda f: f.removesuffix(NMSUFFIX) not in args.e, listdir(path)
+                    )
+                    if isfile(join(path, f))
+                ]
+            )
             for path in paths
         ]
     )
