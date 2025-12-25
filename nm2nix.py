@@ -44,6 +44,8 @@ PATHS = [
     "/etc/NetworkManager/system-connections",
 ]
 
+NMSUFFIX = ".nmconnection"
+
 parser = argparse.ArgumentParser(
     prog="nm2nix",
     description="Converts .nmconnection files into nix code",
@@ -74,14 +76,14 @@ files = list(
         ]
     )
 )
-nmfiles = [f for f in files if f.endswith(".nmconnection")]
+nmfiles = [f for f in files if f.endswith(NMSUFFIX)]
 
 jsonConfigs = {}
 
 for i in nmfiles:
     config = configparser.ConfigParser(delimiters=("=",), interpolation=None)
     config.read(i)
-    connection_name = i.removesuffix(".nmconnection").split("/")[-1]
+    connection_name = i.removesuffix(NMSUFFIX).split("/")[-1]
     jsonConfigs[connection_name] = {}
     for section in config.sections():
         jsonConfigs[connection_name][section] = {}
