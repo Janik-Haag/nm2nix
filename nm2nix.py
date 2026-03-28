@@ -44,8 +44,13 @@ parser.add_argument(
 parser.add_argument(
     "-s", help="wether to output one file per connection", action="store_true"
 )
+TARGET_DEFAULT = "network_connections/"
 parser.add_argument(
-    "-t", help="path under which to save the generated files", default="network_connections/"
+    "-target",
+    help=f"path under which to save the generated files \n default to: {TARGET_DEFAULT}", default=TARGET_DEFAULT
+)
+parser.add_argument(
+    "-overwrite", help="wether to overwrite existing files", action="store_true"
 )
 
 args = parser.parse_args()
@@ -82,6 +87,13 @@ for i in nmfiles:
 if not args.s:
     print(json_to_nix(jsonConfigs))
 else:
+    target_dir = Path(args.target)
+    if len(jsonConfigs) != 0 and not target_dir.exists():
+        target_dir.mkdir()
     for key, value in jsonConfigs.items():
-        with (Path(args.target) / (key + ".nix")).open("w") as f:
+        target_path = target_dir / (key + ".nix")
+        if target_path.exists() and not args.overwrite:
+            print(f"skipping writing to {target_path} because it already exists, use -overwrite to overwrite existing files")
+            continue
+        with target_path.open("w") as f:
             f.write(json_to_nix(value))
