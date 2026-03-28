@@ -7,6 +7,7 @@ import tempfile
 import json
 import argparse
 from itertools import chain
+from pathlib import Path
 
 
 def json_to_nix(input) -> str:
@@ -42,6 +43,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "-s", help="wether to output one file per connection", action="store_true"
+)
+parser.add_argument(
+    "-t", help="path under which to save the generated files", default="network_connections/"
 )
 
 args = parser.parse_args()
@@ -79,5 +83,5 @@ if not args.s:
     print(json_to_nix(jsonConfigs))
 else:
     for key, value in jsonConfigs.items():
-        with open(key + ".nix", "w") as f:
+        with (Path(args.target) / (key + ".nix")).open("w") as f:
             f.write(json_to_nix(value))
