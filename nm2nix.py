@@ -1,12 +1,9 @@
-from os import listdir
-from os.path import basename
 from subprocess import check_output
-from os.path import isfile, join
+from os.path import isfile
 import configparser
 import tempfile
 import json
 import argparse
-from itertools import chain
 from pathlib import Path
 
 
@@ -62,22 +59,16 @@ if args.path is None:
 else:
     paths = args.path
 
-files = list(
-    chain.from_iterable(
-        [
-            ([join(path, f) for f in listdir(path) if isfile(join(path, f))])
-            for path in paths
-        ]
-    )
-)
-nmfiles = [f for f in files if f.endswith(".nmconnection")]
+files = []
+for path in paths:
+    files += list(filter(isfile,Path(path).glob("*.nmconnection")))
 
 jsonConfigs = {}
 
-for i in nmfiles:
+for i in files:
     config = configparser.ConfigParser(delimiters=('=', ), interpolation=None)
     config.read(i)
-    connection_name = basename(i).removesuffix(".nmconnection")
+    connection_name = i.stem
     jsonConfigs[connection_name] = {}
     for section in config.sections():
         jsonConfigs[connection_name][section] = {}
