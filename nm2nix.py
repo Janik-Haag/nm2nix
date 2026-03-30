@@ -49,6 +49,9 @@ parser.add_argument(
 parser.add_argument(
     "-overwrite", help="wether to overwrite existing files", action="store_true"
 )
+parser.add_argument(
+    "-e", help="file names of connections to exclude", action="append", default=[]
+)
 
 args = parser.parse_args()
 
@@ -61,7 +64,7 @@ else:
 
 files = []
 for path in paths:
-    files += list(filter(isfile,Path(path).glob("*.nmconnection")))
+    files += list(filter(lambda f: isfile(f) and f.stem not in args.e, Path(path).glob("*.nmconnection")))
 
 jsonConfigs = {}
 
