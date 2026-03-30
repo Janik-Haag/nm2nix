@@ -7,8 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: cachix/install-nix-action@v22
+    - uses: samueldr/lix-gha-installer-action@latest
+    - uses: nix-community/cache-nix-action@v6
       with:
-        github_access_token: ${{ secrets.GITHUB_TOKEN }}
+        primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
     - run: nix build
     - run: nix flake check --all-systems
